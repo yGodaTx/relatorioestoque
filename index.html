@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1><i class="ti ti-package" style="font-size: 20px"></i> Controle de Estoque - Parafusos</h1>
+            <div class="header-btns">
+                <button class="btn excel-btn" onclick="exportarExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button>
+                <button class="btn danger-outline" onclick="gerarPDF()"><i class="ti ti-file-text"></i> Relatório de Alertas</button>
+                <button class="btn" onclick="window.print()"><i class="ti ti-printer"></i> Imprimir</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat"><div class="stat-label">Total de produtos</div><div class="stat-value" id="s-total">0</div></div>
+            <div class="stat"><div class="stat-label">Com estoque</div><div class="stat-value" style="color: #639922" id="s-ok">0</div></div>
+            <div class="stat"><div class="stat-label">Em alerta</div><div class="stat-value" style="color: #BA7517" id="s-alert">0</div></div>
+            <div class="stat"><div class="stat-label">Críticos</div><div class="stat-value" style="color: #E24B4A" id="s-critical">0</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><i class="ti ti-plus"></i> Cadastrar produto</div>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Nome do produto</label>
+                    <input type="text" id="f-nome" placeholder="Ex: Papel A4 500 folhas">
+                </div>
+                <div class="form-group">
+                    <label>Quantidade em estoque</label>
+                    <input type="number" id="f-qtd" placeholder="0" min="0" oninput="atualizarStatusAuto()">
+                </div>
+                <div class="form-group">
+                    <label>Unidade</label>
+                    <select id="f-unidade">
+                        <option>un</option>
+                        <option>caixa</option>
+                        <option>kg</option>
+                        <option>litro</option>
+                        <option>pacote</option>
+                        <option>rolo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estoque mínimo <span class="auto-badge"><i class="ti ti-bolt" style="font-size: 11px"></i> auto</span></label>
+                    <input type="number" id="f-minimo" placeholder="Ex: 5" min="0" oninput="atualizarStatusAuto()">
+                    <span class="hint">Abaixo ou igual → Crítico</span>
+                </div>
+                <div class="form-group">
+                    <label>Nível de alerta</label>
+                    <input type="number" id="f-alerta" placeholder="Ex: 10" min="0" oninput="atualizarStatusAuto()">
+                    <span class="hint">Abaixo disso → Alerta</span>
+                </div>
+                <div class="form-group">
+                    <label>Categoria (opcional)</label>
+                    <input type="text" id="f-categoria" placeholder="Ex: Escritório">
+                </div>
+                <div class="form-group full">
+                    <label>Status do estoque</label>
+                    <div class="toggle-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-auto" checked onchange="toggleAuto()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" id="toggle-label">Status automático ativado — baseado nas quantidades acima</span>
+                    </div>
+                    <div class="status-select-group" id="status-btns">
+                        <button class="status-btn active-ok disabled-auto" data-status="ok" onclick="selectStatus('ok')"><span class="dot" style="background: #639922"></span>Com estoque</button>
+                        <button class="status-btn disabled-auto" data-status="alert" onclick="selectStatus('alert')"><span class="dot" style="background: #BA7517"></span>Alerta</button>
+                        <button class="status-btn disabled-auto" data-status="critical" onclick="selectStatus('critical')"><span class="dot" style="background: #E24B4A"></span>Crítico</button>
+                    </div>
+                    <div id="status-auto-preview" class="status-auto-preview"></div>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn primary" onclick="adicionarProduto()"><i class="ti ti-plus"></i> Adicionar produto</button>
+                <button class="btn" onclick="limparForm()"><i class="ti ti-x"></i> Limpar</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><i class="ti ti-list"></i> Produtos cadastrados</div>
+            <div class="search-row">
+                <input type="text" id="busca" placeholder="Buscar por nome ou categoria..." oninput="renderTabela()">
+                <button class="btn" onclick="document.getElementById('busca').value=''; renderTabela()"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="filter-pills">
+                <button class="pill active" data-filter="todos" onclick="setFilter('todos', this)">Todos</button>
+                <button class="pill pill-ok" data-filter="ok" onclick="setFilter('ok', this)"><span class="dot" style="background: #639922"></span> Com estoque</button>
+                <button class="pill pill-alert" data-filter="alert" onclick="setFilter('alert', this)"><span class="dot" style="background: #BA7517"></span> Alerta</button>
+                <button class="pill pill-critical" data-filter="critical" onclick="setFilter('critical', this)"><span class="dot" style="background: #E24B4A"></span> Crítico</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th class="col-qty">Qtd</th>
+                            <th class="col-un">Un.</th>
+                            <th class="col-min">Mín.</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-actions">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-body"></tbody>
+                </table>
+            </div>
+            <div id="tabela-empty" class="empty" style="display: none">
+                <i class="ti ti-mood-empty" style="font-size: 28px; display: block; margin-bottom: 8px"></i>
+                Nenhum produto encontrado
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
